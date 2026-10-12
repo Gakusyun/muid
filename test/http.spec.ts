@@ -32,7 +32,8 @@ describe('HTTP: GET', () => {
 		expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
 		expect(res.headers.get('Cache-Control')).toMatch(/^public, max-age=\d{1,2}$/);
 		const id = await res.text();
-		expect(id).toMatch(/^[A-Za-z0-9_-]{32}$/);
+		expect(id).toMatch(/^[A-Za-z0-9]{32}$/);
+		expect(id).not.toMatch(/[-_+/=]/);
 	});
 
 	it('format=json 返回 {seed, len, minuteTimestamp, id}', async () => {

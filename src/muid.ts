@@ -92,51 +92,43 @@ export function parseParams(query: Entries, body: Entries | undefined, env: { SE
 }
 
 const textEncoder = new TextEncoder();
-const B64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+const B62_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 async function sha256(data: Uint8Array): Promise<Uint8Array> {
 	return new Uint8Array(await crypto.subtle.digest('SHA-256', data));
 }
 
-/** base64url 编码，不带 padding。给定字节流固定，输出字符串即固定。 */
-function base64urlNoPad(bytes: Uint8Array): string {
-	let out = '';
-	let i = 0;
-	for (; i + 3 <= bytes.length; i += 3) {
-		const n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
-		out += B64URL_ALPHABET[(n >> 18) & 63] + B64URL_ALPHABET[(n >> 12) & 63] + B64URL_ALPHABET[(n >> 6) & 63] + B64URL_ALPHABET[n & 63];
-	}
-	const rest = bytes.length - i;
-	if (rest === 1) {
-		const n = bytes[i] << 16;
-		out += B64URL_ALPHABET[(n >> 18) & 63] + B64URL_ALPHABET[(n >> 12) & 63];
-	} else if (rest === 2) {
-		const n = (bytes[i] << 16) | (bytes[i + 1] << 8);
-		out += B64URL_ALPHABET[(n >> 18) & 63] + B64URL_ALPHABET[(n >> 12) & 63] + B64URL_ALPHABET[(n >> 6) & 63];
-	}
-	return out;
-}
-
 /**
- * 生成确定性 ID。
+ * 生成确定性 ID，字符集 base62（A-Z a-z 0-9），不含任何符号。
  *
  * 字节流由哈希链构成：h0 = SHA-256(seed-分钟时间戳)，hi = SHA-256(hi-1)，
  * 只依赖 seed 和分钟，同一分钟内同 seed 恒可复现。
  *
- * 前缀性质：取 bytesNeeded = ceil(len * 6 / 8) 字节后编码并截断到 len，
- * 前 len 个字符全部由真实数据位构成（不掺 padding 零位），
+ * 编码：从字节流按位顺序每 6 bit 取一个值（0–63），≥62 的丢弃取下一组，
+ * 其余映射到 62 个字符（拒绝采样，字符在字母数字上均匀分布）。
+ * 字符序列只由字节流决定、与请求长度无关：生成到所需长度即停，
  * 因此任意 len1 < len2，id(len1) 恒为 id(len2) 的前缀。
  */
 export async function generateId(seed: string, minuteTimestamp: number, len: number): Promise<string> {
-	const bytesNeeded = Math.ceil((len * 6) / 8);
-	const bytes = new Uint8Array(bytesNeeded);
-	let offset = 0;
 	let block = await sha256(textEncoder.encode(`${seed}-${minuteTimestamp}`));
-	while (offset < bytesNeeded) {
-		const take = Math.min(block.length, bytesNeeded - offset);
-		bytes.set(block.subarray(0, take), offset);
-		offset += take;
-		if (offset < bytesNeeded) block = await sha256(block);
+	let byteIndex = 0;
+	let bitBuffer = 0;
+	let bitCount = 0;
+	let out = '';
+	while (out.length < len) {
+		if (bitCount < 6) {
+			if (byteIndex >= block.length) {
+				block = await sha256(block);
+				byteIndex = 0;
+			}
+			bitBuffer |= block[byteIndex] << bitCount;
+			bitCount += 8;
+			byteIndex++;
+		}
+		const value = bitBuffer & 63;
+		bitBuffer >>>= 6;
+		bitCount -= 6;
+		if (value < 62) out += B62_ALPHABET[value];
 	}
-	return base64urlNoPad(bytes).slice(0, len);
+	return out;
 }

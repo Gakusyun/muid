@@ -4,10 +4,11 @@ import { cleanSeed, DEFAULT_LEN, generateId, MAX_LEN, ParamError, parseParams } 
 const MINUTE = 1712345640; // 2024-04-06 00:54:00 UTC，60 的整数倍
 
 describe('generateId', () => {
-	it('默认长度为 32，字符集为 base64url', async () => {
+	it('默认长度为 32，字符集为 base62（纯字母数字，无符号）', async () => {
 		const id = await generateId('Gakusyun', MINUTE, DEFAULT_LEN);
 		expect(id).toHaveLength(32);
-		expect(id).toMatch(/^[A-Za-z0-9_-]{32}$/);
+		expect(id).toMatch(/^[A-Za-z0-9]{32}$/);
+		expect(id).not.toMatch(/[-_+/=]/);
 	});
 
 	it('同分钟同 seed 可复现，跨分钟不同', async () => {
@@ -29,7 +30,7 @@ describe('generateId', () => {
 		// 逐长度全检：任意 len1 < len2，id(len1) 是 id(len2) 的前缀
 		const full = await generateId('prefix', MINUTE, MAX_LEN);
 		for (let len = 1; len <= MAX_LEN; len += 7) {
-			expect(full.slice(0, len)).toMatch(new RegExp(`^[A-Za-z0-9_-]{${len}}$`));
+			expect(full.slice(0, len)).toMatch(new RegExp(`^[A-Za-z0-9]{${len}}$`));
 		}
 		const id8 = await generateId('prefix', MINUTE, 8);
 		expect(full.startsWith(id8)).toBe(true);
