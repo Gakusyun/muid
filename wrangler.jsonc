@@ -4,18 +4,8 @@
   "workers_dev": false,
   "preview_urls": false,
   "compatibility_date": "2026-05-05",
-  "routes": [
-    {
-      "pattern": "muid.gxj62.cn/*",
-      "zone_name": "gxj62.cn"
-    },
-    {
-      "pattern": "muid.gkux.cn/*",
-      "zone_name": "gkux.cn"
-    },
-    {
-      "pattern": "muid.238806.xyz/*",
-      "zone_name": "238806.xyz"
-    }
-  ]
+  "vars": {
+    "SEED_DEFAULT": "Gakusyun",
+    "SEED_MAX_LEN": "64"
+  }
 }
