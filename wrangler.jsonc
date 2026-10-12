@@ -3,9 +3,6 @@
   "main": "src/worker.ts",
   "workers_dev": false,
   "preview_urls": false,
-  "compatibility_date": "2026-05-05",
-  "vars": {
-    "SEED_DEFAULT": "Gakusyun",
-    "SEED_MAX_LEN": "64"
-  }
+  "keep_vars": true,
+  "compatibility_date": "2026-05-05"
 }

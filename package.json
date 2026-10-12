@@ -2,14 +2,18 @@
   "name": "muid",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
-    "type-check": "wrangler types && tsc"
+    "type-check": "wrangler types && tsc",
+    "test": "wrangler types && vitest run"
   },
   "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.0",
     "typescript": "^7.0.2",
+    "vitest": "^4.1.11",
     "wrangler": "^4.149.0"
   }
 }
