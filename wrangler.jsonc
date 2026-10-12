@@ -1,6 +1,6 @@
 {
   "name": "muid",
-  "main": "src/worker.js",
+  "main": "src/worker.ts",
   "workers_dev": false,
   "preview_urls": false,
   "compatibility_date": "2026-05-05",

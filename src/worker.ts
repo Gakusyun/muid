@@ -1,9 +1,18 @@
 const encoder = new TextEncoder();
 
+// Env 主体由 `wrangler types` 生成的 worker-configuration.d.ts 提供；
+// SEED_DEFAULT / SEED_MAX_LEN 未在 wrangler.jsonc 中定义，通过全局声明合并补充。
+declare global {
+  interface Env {
+    SEED_DEFAULT?: string;
+    SEED_MAX_LEN?: string;
+  }
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const SEED_DEFAULT = env.SEED_DEFAULT || 'Gakusyun';
-    const SEED_MAX_LEN = parseInt(env.SEED_MAX_LEN) || 64;
+    const SEED_MAX_LEN = parseInt(env.SEED_MAX_LEN ?? '') || 64;
 
     try {
       const url = new URL(request.url);
@@ -20,7 +29,7 @@ export default {
       const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(rawStr));
       const arr = new Uint8Array(hashBuf);
 
-      // FIX: convert Uint8Array → binary string → base64
+      // convert Uint8Array → binary string → base64url
       const binary = String.fromCharCode(...arr);
       const hashStr = btoa(binary).replace(/[+/=]/g, c =>
         c === '+' ? '-' : c === '/' ? '_' : ''
@@ -57,4 +66,4 @@ export default {
       );
     }
   }
-};
+} satisfies ExportedHandler<Env>;
