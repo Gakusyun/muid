@@ -3,6 +3,24 @@ import { describe, expect, it } from 'vitest';
 
 const BASE = 'https://muid.example.com';
 
+/** format=json 成功响应体 */
+interface IdJson {
+	seed: string;
+	len: number;
+	minuteTimestamp: number;
+	id: string;
+}
+
+/** 错误响应体 */
+interface ErrorJson {
+	error: string;
+}
+
+/** Workers 运行时的 Response.json() 返回 unknown，统一在此收窄为具体类型 */
+function json<T>(res: Response): Promise<T> {
+	return res.json() as Promise<T>;
+}
+
 function get(pathAndQuery: string, init?: RequestInit): Promise<Response> {
 	return exports.default.fetch(`${BASE}${pathAndQuery}`, init);
 }
@@ -21,7 +39,7 @@ describe('HTTP: GET', () => {
 		const res = await get('/?format=json&seed=abc&len=8');
 		expect(res.status).toBe(200);
 		expect(res.headers.get('Content-Type')).toMatch(/application\/json/);
-		const data = await res.json();
+		const data = await json<IdJson>(res);
 		expect(Object.keys(data).sort()).toEqual(['id', 'len', 'minuteTimestamp', 'seed']);
 		expect(data.seed).toBe('abc');
 		expect(data.len).toBe(8);
@@ -32,7 +50,7 @@ describe('HTTP: GET', () => {
 	it('显式 timestamp 可复现同分钟 ID，且 immutable 缓存', async () => {
 		const res1 = await get('/?seed=abc&timestamp=1712345640&format=json');
 		const res2 = await get('/?seed=abc&timestamp=1712345640&format=json');
-		const [a, b] = await Promise.all([res1.json(), res2.json()]);
+		const [a, b] = await Promise.all([json<IdJson>(res1), json<IdJson>(res2)]);
 		expect(a.id).toBe(b.id);
 		expect(a.minuteTimestamp).toBe(1712345640);
 		expect(res1.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
@@ -41,7 +59,7 @@ describe('HTTP: GET', () => {
 	it('不同 timestamp（跨分钟）得到不同 ID', async () => {
 		const res1 = await get('/?seed=abc&timestamp=1712345640&format=json');
 		const res2 = await get('/?seed=abc&timestamp=1712345700&format=json');
-		const [a, b] = await Promise.all([res1.json(), res2.json()]);
+		const [a, b] = await Promise.all([json<IdJson>(res1), json<IdJson>(res2)]);
 		expect(a.id).not.toBe(b.id);
 	});
 
@@ -54,7 +72,7 @@ describe('HTTP: GET', () => {
 
 	it('别名生效且全名优先', async () => {
 		const res = await get('/?s=abc&seed=full&l=8&format=json');
-		const data = await res.json();
+		const data = await json<IdJson>(res);
 		expect(data.seed).toBe('full');
 		expect(data.len).toBe(8);
 	});
@@ -65,7 +83,7 @@ describe('HTTP: GET', () => {
 			expect(res.status, query).toBe(400);
 			expect(res.headers.get('Content-Type')).toMatch(/application\/json/);
 			expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
-			const data = await res.json();
+			const data = await json<ErrorJson>(res);
 			expect(data.error).toBeTruthy();
 		}
 	});
@@ -74,7 +92,7 @@ describe('HTTP: GET', () => {
 		const res = await exports.default.fetch(`${BASE}/`, { method: 'PUT' });
 		expect(res.status).toBe(405);
 		expect(res.headers.get('Allow')).toBe('GET, HEAD, POST');
-		const data = await res.json();
+		const data = await json<ErrorJson>(res);
 		expect(data.error).toBeTruthy();
 	});
 
@@ -94,7 +112,7 @@ describe('HTTP: POST', () => {
 			body: JSON.stringify({ seed: 'post', len: 12, timestamp: 1712345640 }),
 		});
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = await json<IdJson>(res);
 		expect(data.seed).toBe('post');
 		expect(data.len).toBe(12);
 		expect(data.id).toHaveLength(12);
@@ -108,7 +126,7 @@ describe('HTTP: POST', () => {
 			body: 'seed=form&len=10&timestamp=1712345640',
 		});
 		expect(res.status).toBe(200);
-		const data = await res.json();
+		const data = await json<IdJson>(res);
 		expect(data.seed).toBe('form');
 		expect(data.len).toBe(10);
 	});
@@ -119,7 +137,7 @@ describe('HTTP: POST', () => {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ seed: 'body' }),
 		});
-		const data = await res.json();
+		const data = await json<IdJson>(res);
 		expect(data.seed).toBe('body');
 	});
 
@@ -130,7 +148,7 @@ describe('HTTP: POST', () => {
 			body: 'hello',
 		});
 		expect(res.status).toBe(400);
-		const data = await res.json();
+		const data = await json<ErrorJson>(res);
 		expect(data.error).toMatch(/Content-Type/);
 	});
 
